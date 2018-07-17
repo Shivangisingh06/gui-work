@@ -1,0 +1,480 @@
+#:import MeshLinePlot kivy.garden.graph.MeshLinePlot
+
+<CustomPopup>:
+
+    title: 'Executing PCIebandwidth'
+    background_color:(0,0.4,0.3,1)
+	
+    auto_dismiss: False
+    GridLayout:
+        rows:5
+        GridLayout:
+            rows:1
+            size_hint_y: None
+            size:20,20
+            Label:
+                text: "CardToHost                  HostToCard               VideoUnit"
+                text_size: self.size
+                halign:"left"
+                height: 10
+                color:0.5,1,0.8,1
+        
+        
+        GridLayout:
+            rows:1
+           
+            TextInput:
+                id:runtimedata
+                text:str(root.bandwidthdata)
+                background_color: (0.1,0.1,0.1,0.5)
+                font_size:14
+                readonly:False
+                allow_copy:True
+                copydata: self.text
+                use_bubble: True
+                size: (0.9,0.9)
+                foreground_color: (1,0.9,0.9,1)
+               
+
+            
+        GridLayout:
+            rows:1
+            cols:2
+            TextInput:
+                id:thresholdvalue
+                text:str(root.thresholddata)
+                background_color:(0,100,100,0.3)
+                foreground_color: (0,0,0,1)
+                font_size:14
+                readonly: True
+                allow_copy:True
+                copydata: self.text
+                use_bubble: True
+                size: (0.9,0.9)
+                
+            TextInput:
+                id:Averagedata
+                text:"CardToHost and HostToCard statistics:"
+                background_color:(0,100,100,0.3)
+                foreground_color: (0,0,0,1)
+                font_size:14
+                bold:True
+    
+        
+        GridLayout:
+            rows:1
+            cols:2
+       
+            Graph:
+                id: graph_test
+                plot:MeshLinePlot
+                xlabel:'Iteration'
+                ylabel:'cardtohostspeed'
+                x_ticks_minor:5
+                x_ticks_major:10
+                tick_color: 0.35,0.35,0.35,1
+                background_color: 0, 0, 0, 1
+                y_ticks_major:20
+                y_tricks_minor:5
+                y_grid_label: True
+                x_grid_label: True
+                padding:5
+                x_grid:True
+                y_grid: True
+                xmin:0
+                xmax:
+                ymin:0
+                ymax:1
+                pos:0,0
+                size:root.width , root.height
+             
+             
+            Graph:
+                id: graph2
+                plot:MeshLinePlot
+                xlabel:'numberOfValue'
+                ylabel:'hostTocard Speed'
+                x_ticks_minor:5
+                x_ticks_major:10
+                tick_color: 0.35,0.35,0.35,1
+                background_color: 0, 0, 0, 1
+                y_ticks_major:20
+                y_tricks_minor:5
+                y_grid_label: True
+                x_grid_label: True
+                padding:5
+                x_grid:True
+                y_grid: True
+                xmin:0
+                xmax:
+                ymin:0
+                ymax:1
+                pos:0,0
+                size:root.width , root.height
+
+        
+    
+        GridLayout:
+            
+            cols: 3
+            row_force_default:True
+            row_default_height:60
+            
+                
+            Label:
+                
+                
+          
+            Button:
+                text: 'Close'
+                size_hint: None,None
+                size: 100,25
+                background_color: (0,1,1,0.4)
+                on_release: root.dismiss()
+
+<Tooltip>:
+    
+    size_hint:None ,None
+    size: self.texture_size[0]+1, self.texture_size[1]+1
+    texture_size: None,None
+    font_size:12
+    bold:True
+    
+    canvas.before:
+        Color:
+            rgb:0,100,110
+        Rectangle:
+            size:self.size
+            pos:self.pos
+
+           
+  
+
+<MenuScreen>:
+  
+    FloatLayout:
+        
+        Image:
+            source:'en_top.jpg'
+            allow_stretch: True
+            keep_ratio: False
+            size_hint_y: None
+            size_hint_x: None
+            width: self.parent.width
+            height: self.parent.height
+            pos:self.pos
+            opacity:0.2
+        Label:
+            id:filecheck
+            text: 'Fill details for sample.xml'
+            italic: True
+            font_size: 18
+            bold:True
+            underline: True
+            color:0.5,1,0.8,1
+            pos_hint:{'right':1.18,'center_y':0.95}
+            
+        GridLayout:
+            cols:2
+            spacing:5
+            padding:[10,10,10,10]
+            row_force_default: True
+            row_default_height: 28
+            pos_hint: {'right':1,'center_y':0.59}
+            size_hint:0.65,0.65
+            
+            
+           
+            Label:
+                id: formatcheck
+                text:'FORMAT'
+                bold:True
+                italic:True
+                font_size:16
+                color: 0,100,110,1
+               
+            
+            Spinner:
+                id: format
+                font_size: 16
+                bold:True
+                text: 'YUYV422'
+                values: "YUYV422", "ARGBGraphic", "YUAYVA4224"
+                color: (0.05, 0.890, 0.843, 1)
+                background_color:(0.05, 0.443, 0.516, 0.5)
+                
+    
+                
+            Label:
+                text:'VERBOSITY'
+                font_size:16
+                bold:True
+                italic:True
+                color: 0,100,110,1
+            Spinner:
+                id: verbosity
+                font_size: 16
+                bold:True
+                text: '3'
+                values: "0","1","2","3"
+                color: (0.05, 0.890, 0.843, 1)
+                background_color:(0.9, 0.443, 0.516, 0.5)
+                
+            Label:
+                text:'DURATION(IN SECONDS)'
+                bold:True
+                italic:True
+                color: 0,100,110,1  
+            TextInput:
+                id:duration
+                cursor_blink:True
+                input_filter: 'int'
+                background_color:(0.8,0.4,0.4,0.4)
+                hint_text:"For accuracy, keep minimum of 10 seconds"
+                multiline: False
+                focus: True
+                            
+            Label:
+                text:'CARD_TO_HOST_TRANSFER'
+                bold:True
+                italic:True
+                color: 0,100,110,1
+            Spinner:
+                id: cardtohost
+                font_size: 16
+                bold:True
+                text: 'true'
+                values: "true","false"
+                color: (0.05, 0.890, 0.843, 1)
+                background_color:(0.05, 0.443, 0.516, 0.5)
+
+            
+            Label:
+                text:'HOST_TO_CARD_TRANSFER'
+                bold:True
+                italic:True
+                color:0,100,110,1 
+            Spinner:
+                id: hosttocard
+                font_size: 16
+                bold:True
+                text: 'true'
+                values: "true","false"
+                color: (0.05, 0.890, 0.843, 1)
+                background_color:(0.9, 0.443, 0.516, 0.5)
+                
+            Label:
+                text:'Resolution'
+                bold:True
+                italic: True
+                color:0.5,1,0.8,1
+                font_size:18   
+            Label:
+            
+            Label:
+                text:'BIT DEPTH'
+                bold:True
+                italic:True
+                color: 0,100,110,1    
+            Spinner:
+                id: bitdepth
+                font_size: 16
+                bold:True
+                text: '10'
+                values: "8","10"
+                color: (0.05, 0.890, 0.843, 1)
+                background_color:(0.05, 0.443, 0.516, 0.5)
+                
+            Label:
+                text:'WIDTH'
+                bold:True
+                italic:True
+                color:0,100,110,1             
+            Spinner:
+                id: width
+                font_size: 16
+                bold:True
+                text: '1920'
+                values: "1920"," .", ".."
+                color: (0.05, 0.890, 0.843, 1)
+                background_color:(0.9, 0.443, 0.516, 0.5)
+                
+            Label:
+                text:'HEIGHT'
+                bold:True
+                italic:True
+                color: 0,100,110,1
+            Spinner:
+                id:height
+                font_size: 16
+                bold:True
+                text: '1080'
+                values: "1080","720", "480"
+                color: (0.05, 0.890, 0.843, 1)
+                background_color:(0.05, 0.443, 0.516, 0.5)
+                
+            Label:
+                text:'ASPECT_RATIO'
+                bold:True
+                italic:True
+                color:0,100,110,1
+            Spinner:
+                id:aspectratio
+                font_size: 16
+                bold:True
+                text: '16:9'
+                values: "16:9"," .", ".."
+                color: (0.05, 0.890, 0.843, 1)
+                background_color:(0.9, 0.443, 0.516, 0.5)
+            
+            Label:
+                text:'FRAME_RATE'
+                bold:True
+                italic:True
+                color: 0,100,110,1
+            Spinner:
+                id:framerate
+                font_size: 16
+                bold:True
+                text: '60'
+                values: "24", "23.98", "25", "30", "29.97", "50", "60", "59.94"
+                color: (0.05, 0.890, 0.843, 1)
+                background_color:(0.05, 0.443, 0.516, 0.5)
+ 
+            Label:
+                text:'FRAME_TYPE'
+                bold:True
+                italic:True
+                color:0,100,110,1
+            Spinner:
+                id:frametype
+                font_size: 16
+                bold:True
+                text: 'progressive'
+                values: "firstfieldtop", "secondfieldtop", "progressive"
+                color: (0.05, 0.890, 0.843, 1)
+                background_color:(0.9, 0.443, 0.516, 0.5)
+            Label:
+                text:'Hardware'
+                bold: True
+                italic:True
+                color:  0,100,110,1
+            Spinner:
+                id: hardwareindex
+                
+            
+            Label:
+                id:warnings
+                italic: True
+                font_size:16
+            Button:
+                id: generatexml
+                text:'Generate Sample XML'
+                bold:True
+                italic: True
+                background_color: (1,1,0,0.4)
+                size_hint:0.2,0.1
+                pos_hint:{'x':0.80, 'y':0.15}               
+                on_release:
+                    root.validateText()
+                   
+                    
+            Label:
+            Label:
+            
+            Label:
+                id:thresholdsetup
+                bold:True
+                italic:True
+                underline: True
+                text: " Input Minimum Speed to check:"
+                font_size:17
+                color:0.5,1,0.8,1
+               
+            Label:
+            Label:
+                id: thresholdlabel
+                text: "THRESHOLD VALUE MB/s"
+                font_size:16
+                italic:True
+                bold:True
+                color:(0,100,110,1)
+            TextInput:
+                id:threshold
+                hint_text:'2800'
+                cursor_blink: True
+                input_filter:'float'
+                multiline: False
+                font_name:'Arial'
+                background_color:(0.8,0.4,0.4,0.4)
+                foreground_color:(1,1,1,1)
+                
+            
+ 
+           
+            
+        Button:
+            id: info
+            text: 'Information AND Help!!! '
+            color: 0.957, 0.890, 0.843, 1
+            size_hint: .25, .1
+            font_size: 18
+            bold:True
+            italic: True
+            pos_hint: {'x': .05, 'y': .85}
+            background_color: (0,1,1,0.4)
+            on_release:
+                
+                root.manager.transition.duration = 0.5
+                root.manager.current = 'survey'
+                
+            
+
+        Button:
+            text: 'Calculate PCIeBandwidth'
+            color: 0.957, 0.890, 0.843, 1
+            font_size: 18
+            bold:True
+            italic: True
+            size_hint: .25, .1
+            pos_hint: {'x': .05, 'y': .65}
+            background_color: (0,1,1,0.4)
+            on_release:root.xmlFileCheck()
+
+				
+				
+				
+        Button:
+            text: 'Quit'
+            color: 0.957, 0.890, 0.843, 1
+            font_size: 22
+            bold:True
+            italic: True
+            size_hint: .2, .1
+            background_color: (0,1,1,0.4)
+            pos_hint: {'x': .05, 'y': .1}
+            on_release: app.stop()
+
+<InfoScreen>:
+
+    GridLayout:
+        cols: 1
+        padding: 20
+        spacing: 10
+
+		canvas.before:
+            Rectangle:
+                source: 'background_center.jpg'
+                size: self.size
+                pos: self.pos
+
+        Label:
+            text: 'WELCOME To Matrox Apps !'
+            font_size: 20
+
+        Button:
+            text: 'Back to MainScreen'
+            size_hint: (0.9,0.05)
+            on_release:
+                root.manager.transition.duration = 0.5
+                root.manager.current = 'menu'

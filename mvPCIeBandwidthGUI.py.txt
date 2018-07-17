@@ -1,0 +1,483 @@
+import os
+os.environ['KIVY_CLIPBOARD'] = 'sdl2'   #Patch for Copy issue
+import kivy
+import re
+import regex
+from kivy.app import App
+from kivy.graphics import Color, Rectangle
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.tabbedpanel import TabbedPanel
+from kivy.uix.label import Label
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
+from kivy.uix.dropdown import DropDown 
+from kivy.properties import ObjectProperty, StringProperty,ListProperty
+from kivy.lang import Builder
+from kivy.uix.popup import Popup
+from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
+from kivy.uix.progressbar import ProgressBar
+from kivy.animation import Animation
+from kivy.clock import Clock
+import subprocess
+from subprocess import Popen, PIPE
+import time,threading
+from threading import Thread
+import itertools
+from xml.dom import minidom
+from xml.etree import ElementTree
+from xml.etree.ElementTree import Element
+from xml.etree.ElementTree import SubElement
+from kivy.garden.graph import Graph, MeshLinePlot
+import math
+from kivy.graphics import Fbo
+from collections import deque
+from kivy.core.window import Window
+from kivy.factory import Factory
+
+
+
+
+def iter_except(function, exception):
+    """Works like builtin 2-argument `iter()`, but stops on `exception`."""
+    try:
+        while True:
+            yield function()
+    except exception:
+        return
+
+ ######################################################################################
+ #
+ #
+ #
+ ######################################################################################
+class CustomPopup(Popup):
+
+    bandwidthdata = StringProperty("")
+    thresholddata = StringProperty("")
+    uservalue = StringProperty("")
+    averagevalue = StringProperty("")
+    
+    def __init__(self,**kwargs):
+        super(CustomPopup,self).__init__(**kwargs)
+        self.plot = MeshLinePlot(color =[0,1,0,1])
+        self.plothosttocard = MeshLinePlot(color = [1,1,0,1])
+        self.plotpoints = []
+        self.plotpoints1= []
+        self.ids.graph_test.add_plot(self.plot)
+        self.ids.graph2.add_plot(self.plothosttocard)
+
+        
+    def update(self):
+        
+        command = [r"mvPCIeBandwidthTest.exe","-f=sample.xml"]
+
+        # start subprocess to execute PCIeBandwidth and get the output 
+        self.process = subprocess.Popen( command,shell = True,stdout = PIPE,stdin = PIPE)
+
+        #self.process.stdin.write('y'.encode('utf-8'))
+        self.process.stdin.close()
+        q = self.process.stdout.readline()
+
+        commandlinethread = Thread(target=self.reader_thread,args= [q])
+        self._event = threading.Event()
+        commandlinethread.daemon = True # close pipe if GUI process exits
+        commandlinethread.start()
+        
+   
+    def reader_thread(self,q):
+        """Read subprocess output and put it into textinput box."""
+        try:
+        #print()
+            with self.process.stdout as pipe:
+                for line in iter(pipe.readline,b''):
+                    # Formatted the text fetched from command prompt - Removed /r/n'
+                    line = str(line)[:-5]
+                    # displays text in newline of textinput box and removes binary string from starting of each line 
+                    
+                    self.averagevalue += ("\n" + line.split("b'")[1])
+                    
+                    filternumericvalue = regex.match(r"^[1-9]",line.split("b'")[1])
+                    
+                    if(filternumericvalue):
+                            self.bandwidthdata += ("\n" + line.split("b'")[1])
+
+                    
+                    #function to filter the data on the basis of threshold value 
+
+
+                    self.threshold_value(line.split("b'")[1])
+                    Clock.schedule_interval(self.update_points,1/10)
+                    Clock.schedule_interval(self.update_graph,1/10)
+                    
+
+        finally:
+            with open("average.txt","w") as file:
+                file.write(self.averagevalue)
+                file.close()
+            self.average_finder()
+   
+            
+    #This function checks the data on the basis of threshold value user wants to check... 
+    def threshold_value(self,data):
+       
+        uservaluefloat = float(self.uservalue)
+        #Clock.schedule_interval(self.update_points,1/50)
+        #Clock.schedule_interval(self.update_graph,1/50)
+        #filter the commandline value for comparison with user provided threshold value
+        try:
+            #r1 = re.findall(r"[0-9][0-9][0-9][0-9]*[.,][0-9][0-9]",data)
+
+            startstringfilter = regex.findall(r"^\d\d\d\d*[.,]\d\d\s[A-Z][A-Z]/[a-z]\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\s\d\d\d\d*[.,]\d\d\s[A-Z][A-Z]/[a-z]",data)
+            valuefilter = regex.findall(r"[0-9][0-9][0-9][0-9]*[.,][0-9][0-9]",str(startstringfilter))
+            
+            if (valuefilter):                
+                cardtohostnum = float(valuefilter[0])           
+                hosttocardnum = float(valuefilter[1])
+                currenttime = int(time.time())
+                self.add_points(cardtohostnum,hosttocardnum)
+                
+              
+                #Clock.schedule_interval(lambda *args:self.add_points(cardtohostnum),0.2)
+                #Clock.schedule_interval(self.add_points(cardtohostnum),0.5)
+
+                #self.setgraph(cardtohostnum,currenttime)
+                #for values in valuefilter:
+                if (cardtohostnum <= uservaluefloat and cardtohostnum != 0000.00)  :
+                       
+                            self.thresholddata += "\n" + "  Card to Host  " + str(cardtohostnum) + " " + str(time.asctime( time.localtime(time.time()) ))
+                
+                #elif didn't work     
+                if (hosttocardnum <= uservaluefloat and hosttocardnum != 0000.00):
+                        
+                            self.thresholddata +=  "\n" + "  HOST TO CARD  " + str(hosttocardnum) + " " + str(time.asctime( time.localtime(time.time()) ))
+
+                        
+
+        except :
+            print (Exception)
+            self.thresholddata = "Error occured"
+
+     
+    def average_finder(self):
+
+        with open('average.txt','r') as file:
+            for line in file:
+                if ('Minimum') in line :
+                    self.ids.Averagedata.text +="\n" + line
+            file.close()
+
+    
+    def update_points(self,*args):
+
+        self.plot.points = zip(range(len(self.plotpoints)),self.plotpoints)
+  
+        self.plothosttocard.points = zip(range(len(self.plotpoints1)),self.plotpoints1)
+
+    def update_graph(self,*args):
+        
+        try:
+            
+            if len(self.plotpoints)>3 :
+                self.ids.graph_test.ymin = math.ceil(min(self.plotpoints))
+                self.ids.graph_test.ymax = math.ceil(max(self.plotpoints))
+                self.ids.graph_test.xmax = math.ceil(len(self.plotpoints))
+            
+
+            if len(self.plotpoints1)>3:
+                self.ids.graph2.ymin = math.ceil(min(self.plotpoints1))
+                self.ids.graph2.ymax = math.ceil(max(self.plotpoints1))
+                self.ids.graph2.xmax = math.ceil(len(self.plotpoints1))
+
+        except ZeroDivisionError as detail:
+            print('Handling runtime error:' , detail)
+            
+
+    
+    def add_points(self,cardnum,hostnum):
+        self.plotpoints.append(cardnum)
+        self.plotpoints1.append(hostnum)
+
+#################################################################################
+#
+#################################################################################        
+
+class Tooltip(Label):
+    pass
+
+##############################################################################################
+#
+#
+##############################################################################################
+class MenuScreen(Screen):
+
+    progress_bar = ObjectProperty()
+    tooltip = Tooltip(text = 'hello world')
+   
+    def __init__(self,**kwargs):
+        
+        super(MenuScreen,self).__init__(**kwargs)
+        Window.bind(mouse_pos = self.on_mouse_pos)
+        
+        
+  
+        #check for the 'sample.xml' if exists populate with values in file 
+        if(os.path.isfile('sample.xml') == True):
+            tree = ElementTree.parse('sample.xml')
+            root = tree.getroot()
+            self.ids.format.text = root[0][0].text
+            self.ids.verbosity.text = root[0][1].text
+            self.ids.duration.text = root[0][2].text
+            self.ids.cardtohost.text = root[0][6].text
+            self.ids.hosttocard.text = root[0][7].text
+            self.ids.bitdepth.text = root[0][8][0].text
+            self.ids.width.text = root[0][8][1].text
+            self.ids.height.text = root[0][8][2].text
+            self.ids.aspectratio.text = root[0][8][3].text
+            self.ids.framerate.text = root[0][8][4].text
+            self.ids.frametype.text = root[0][8][5].text
+
+            
+        self._fbo = Fbo(size = self.size,wih_stencilbuffer = False)
+        
+      
+        self.pciResultPopup= CustomPopup()
+        
+        self.progress_bar = ProgressBar()
+        self.progressBarPopup = Popup(
+            title='Executing....',
+            content=self.progress_bar,
+            size_hint = (None,None),
+            size = (200,100)
+        )
+        #bind custompop which display runtime values of the PCIebandwidth applet with the execution Popup 
+        self.progressBarPopup.bind(on_open=self.puopen)
+
+    def on_mouse_pos(self,instance,pos):
+        Clock.unschedule(self.display_tooltip)
+        self.close_tooltip()
+
+        if self.ids.format.collide_point(*pos):
+            self.tooltip.pos = pos
+            print(pos)
+            self.tooltip.text = "testing"
+            print ("test pass")
+            Clock.schedule_once(self.display_tooltip,2)
+           
+            
+    def close_tooltip(self, *args):
+        
+        Window.remove_widget(self.tooltip)
+
+    def display_tooltip(self, *args):
+        
+        Window.add_widget(self.tooltip)
+
+        print(self.tooltip.text)
+        
+        print( Window.add_widget(self.tooltip))
+      
+
+    ################    ################    ####################### ####################
+    
+
+          
+    #Check for the Sample.xml in order to avoid applet crashing
+    def xmlFileCheck(self):
+        if(os.path.isfile('sample.xml')==True and self.ids.threshold.text !=""):
+            if(self.ids.format.text == "ARGBGraphic" and self.ids.bitdepth.text != "8"):
+                self.warningforxml = Popup(
+                                        title = "Warning",
+                                        content = Label(text = "Bit Depth should be 8, re-generate sample.xml",color = (1,0,0,1)),
+                                        size_hint = (None,None),
+                                        size = (400,100))
+
+                self.warningforxml.open()
+            else:
+                self.progressBarPop()
+
+        #elif(self.ids.threshold.text==""):
+        #    self.ids.thresholdlabel.color = (1,0,0,1)
+
+        elif(os.path.isfile('Sample.xml')==False):
+            #Highlight the label in case file not found
+            self.warningforxml = Popup(
+                title = "Warning",
+                content = Label(text = "sample.xml not found...",color = (1,0,0,1)),
+                size_hint = (None,None),
+                size = (200,100))
+            self.warningforxml.open()
+            #self.ids.filecheck.color = (1,0,0,1)
+        else:
+             self.warningforxml = Popup(
+                title = "Warning",
+                content = Label(text = "Threshold Value Missing",color = (1,0,0,1)),
+                size_hint = (None,None),
+                size = (200,100))
+             self.warningforxml.open()
+
+
+
+    def progressBarPop(self):
+        #set the initial value of progressbar and displays in popup window which is initialised  above
+        self.progress_bar.value = 1
+        self.progressBarPopup.open()
+        
+    
+    def clockupdate(self,dt):
+        if self.progress_bar.value==100:
+            self.progressBarPopup.dismiss()
+        self.progress_bar.value += 1
+
+
+    def next(self):
+        
+        self.pciResultPopup.update()
+        self.pciResultPopup.uservalue = self.ids.threshold.text
+        thistime = time.time()
+            
+        while thistime + 10 > time.time() is True: # 15 seconds
+              time.sleep(1)        
+        #As soon process starts fetching data from commandprompt it closes progressbar window and opens custome popup
+        self.progressBarPopup.dismiss()
+        self.pciResultPopup.open()
+      
+ 
+    def puopen(self, instance):
+        #schedule the progress bar speed
+        Clock.schedule_interval(self.clockupdate ,1/20)
+        mythread = threading.Thread(target = self.next)
+        mythread.start()
+    
+
+
+    def createXML(self):
+      
+        #defining the structure of Sample.xml file 
+        root = Element('MV_BANDWIDTH_TEST')
+        root.set('version','1.0')
+        output = SubElement(root,'OUTPUT')
+        Format = SubElement(output,'FORMAT')
+        verbosity = SubElement(output,'VERBOSITY')
+        duration = SubElement(output,'DURATION')
+        clearlog = SubElement(output,'CLEAR_LOG')
+        printlog = SubElement(output,'PRINT_LOG')
+        printscreen = SubElement(output,'PRINT_SCREEN')
+        cardtohost = SubElement(output,'CARD_TO_HOST_TRANSFER')
+        hosttocard = SubElement(output, 'HOST_TO_CARD_TRANSFER')
+        resolution = SubElement(output,'RESOLUTION')
+        bitdepth = SubElement(resolution ,'BIT_DEPTH')
+        width = SubElement (resolution,'WIDTH')
+        height = SubElement (resolution, 'HEIGHT')
+        aspectratio = SubElement(resolution,'ASPECT_RATIO')
+        framerate = SubElement(resolution,'FRAME_RATE')
+        frametype = SubElement(resolution,'FRAME_TYPE')
+
+        #Adding comments to the XML file 
+        formatcomm = ElementTree.Comment(text = 'FORMAT options: ARGBGraphic,YUYV422, YUAYVA4224')
+        verbcomm = ElementTree.Comment(text = 'VERBOSITY options:0 for no periodical print, 1 for prints every 5s, 2 for prints every second, 3 for all prints')
+        durationcomm = ElementTree.Comment(text = 'DURATION options: integer for duration of test, in seconds (for accurate results, we recommend a minimum duration of 10 seconds')
+        clearlogcomm = ElementTree.Comment(text = 'CLEAR_LOG options: true to clear all statistics and past logs, false to keep them')
+        printlogcomm = ElementTree.Comment(text = 'PRINT_LOG options: true to write all information into the log file')
+        printscreencomm = ElementTree.Comment(text = 'PRINT_SCREEN options: true to print all information on the screen ')
+        frameratecomm = ElementTree.Comment(text = 'FRAME_RATE options: 24, 23.98, 25, 30, 29.97, 50, 60, 59.94')
+        frametypecomm = ElementTree.Comment(text = 'FRAME_TYPE options: firstfieldtop, secondfieldtop, progressive')
+        cardtohostcomm = ElementTree.Comment(text = 'CARD_TO_HOST_TRANSFER options: true to enable card to host transfer')
+        hosttocardcomm = ElementTree.Comment(text = 'HOST_TO_CARD_TRANSFER options: true to enable host to card transfer')
+
+        root.insert(23,formatcomm)
+        root.insert(24,verbcomm)
+        root.insert(25,durationcomm)
+        root.insert(26,clearlogcomm)
+        root.insert(27,printlogcomm)
+        root.insert(28,printscreencomm)
+        root.insert(29,frameratecomm)
+        root.insert(30,frametypecomm)
+        root.insert(31,cardtohostcomm)
+        root.insert(32,hosttocardcomm)
+
+        #fetching the value from the GUI text input for xml generation 
+        Format.text = self.ids.format.text
+        verbosity.text = self.ids.verbosity.text
+        duration.text =self.ids.duration.text
+        clearlog.text = 'false'
+        printlog.text = 'true'
+        printscreen.text = 'true'
+        cardtohost.text = self.ids.cardtohost.text
+        hosttocard.text = self.ids.hosttocard.text
+        bitdepth.text = self.ids.bitdepth.text
+        width.text = self.ids.width.text
+        height.text = self.ids.height.text
+        aspectratio.text = self.ids.aspectratio.text
+        framerate.text = self.ids.framerate.text
+        frametype.text = self.ids.frametype.text
+
+        #creating Sample.xml file 
+        xmlfiledata = ElementTree.tostring(root)
+        sampleXml = open("sample.xml","w")
+        sampleXml.write(minidom.parseString(xmlfiledata).toprettyxml())
+    
+    #Validate the input provided by the user and flash message in label 
+    def validateText(self):
+        if(self.ids.duration.text== "" ):
+             self.ids.warnings.color= (1,0,0.1,1)
+             self.ids.warnings.text = 'Duration Missing'
+             Clock.schedule_once(self.reset_label,4)
+        
+        elif (self.ids.format.text == "ARGBGraphic" and self.ids.bitdepth.text != "8"):
+
+            self.warningforxml = Popup(
+                title = "Warning",
+                content = Label(text = "Bit Depth should be 8",color = (1,0,0,1)),
+                size_hint = (None,None),
+                size = (200,100))
+            self.warningforxml.open()
+                  
+        else:
+            self.ids.warnings.color= (0,0.8,0.2,1)
+            self.ids.warnings.text = 'XML Generated,Start Speed test'
+            self.ids.generatexml.color= (0.957, 0.890, 0.843, 1)
+            self.createXML()
+            #self.ids.generatexml.text = 'XML Generated..'
+            self.ids.duration.text = ""
+            Clock.schedule_once(self.reset_label,3)
+            
+    
+    def reset_label(self,*args):
+        self.ids.warnings.text = ""
+
+     
+############################################################################
+#
+#
+#############################################################################   
+   
+class InfoScreen(Screen):
+    pass
+
+
+
+################################################################################
+#
+#
+################################################################################
+
+class mvPCIeBandwidthGUIApp(App):
+
+    def build(self):
+
+        #Adding multiple Screens to the GUI using Screen Manager
+        sm = ScreenManager (transition = FadeTransition ())
+        sm.add_widget (MenuScreen (name = 'menu'))
+        sm.add_widget (InfoScreen (name = 'survey'))
+    
+        return sm
+
+
+
+        
+
+if __name__ == '__main__':
+    
+    mvPCIeBandwidthGUIApp().run()
